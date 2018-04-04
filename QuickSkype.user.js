@@ -9,7 +9,9 @@
 
 const config = {
     debug: true,
-    showMsg: true
+    showMsg: true,
+    checkInterval: 3000,
+    maxTicks: 5
 };
 
 const assets = {
@@ -20,12 +22,16 @@ const assets = {
     "div[type='assign to'], div[type='user']"
 };
 
-const checkInterval = 1000;
-const maxTicks = 25;
-var ticks = 0;
-var elementsFound = false;
+var checkTimer;
+var ticksCounter = 0;
+var isElementsFound = false;
+
+
+this.$ = this.jQuery = jQuery.noConflict(true);
 
 function logMsg(lvl, txt) {
+    // GM_log(txt);
+    // return;
     if (config['debug']) {
         if (lvl == 'in') {
             console.info(txt);
@@ -55,7 +61,7 @@ function formatDivWithNewButton(contactDiv) {
         var email = tryExtractedMail(contactDiv);
         if (email) {
             contactDiv.innerHTML += assets['buttonHTML'].replace('{{email}}', email);
-            elementsFound = true;
+            isElementsFound = true;
         } else {
             logMsg('wa', "No mail found");
         }
@@ -79,31 +85,37 @@ function notifyMsg() {
 }
 
 function stopTimerOverFlow() {
-    ticks++;
-    if (ticks === maxTicks) {
-        if (elementsFound) {
+    ticksCounter++;
+    if (ticksCounter === config['maxTicks']) {
+        if (isElementsFound) {
             notifyMsg();
         } else {
             logMsg('in', 'No elements found')
         }
-        logMsg('in', "max ticks reached");
+        logMsg('in', "max ticksCounter reached");
         stopTimer();
     }
 }
 
 function checkForUpdate() {
-    logMsg($(assets['selectors']).size(), "elements found");
+    logMsg('in', "looking for elements...");
+    var elements = $(assets['selectors']);
+    logMsg('in', elements.size() + " elements found");
 
-    $(assets['selectors']).each(function () {
+    elements.each(function () {
         stopTimer();
         logMsg('in', "processing new element");
         formatDivWithNewButton(this);
     });
-
-    stopTimerOverFlow();
 }
 
 logMsg('in', "script started");
-var checkTimer = setInterval(function () {
-    checkForUpdate();
-}, checkInterval);
+$(document).ready(function() {
+    logMsg('in', "doc ready");
+    function timerInterval() {
+        logMsg('in', "tick");
+        stopTimerOverFlow();
+        checkForUpdate();
+    }
+    checkTimer = setInterval(timerInterval, config['checkInterval']);
+});
