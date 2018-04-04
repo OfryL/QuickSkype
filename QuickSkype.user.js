@@ -11,7 +11,8 @@ const config = {
     debug: true,
     showMsg: true,
     checkInterval: 3000,
-    maxTicks: 5
+    maxTicks: 5,
+    delayedStart: 1000
 };
 
 const assets = {
@@ -23,21 +24,18 @@ const assets = {
 };
 
 var checkTimer;
-var ticksCounter = 0;
 var isElementsFound = false;
 
 
 this.$ = this.jQuery = jQuery.noConflict(true);
 
-function logMsg(lvl, txt) {
-    // GM_log(txt);
-    // return;
+function logDebugMsg(lvl, txt) {
     if (config['debug']) {
-        if (lvl == 'in') {
+        if (lvl == 'i') {
             console.info(txt);
-        } else if (lvl == 'wa') {
+        } else if (lvl == 'w') {
             console.warn(txt);
-        } else if (lvl == 'er') {
+        } else if (lvl == 'e') {
             console.error(txt);
         }
     }
@@ -53,24 +51,27 @@ function extractedMailFromEntity(entity) {
 
 function tryExtractedMail(contactDiv) {
     var entity = $(contactDiv).scope().entity;
+    debugger;
     return extractedMailFromEntity(entity);
 }
 
 function formatDivWithNewButton(contactDiv) {
+    logDebugMsg('i', ("trying to format " + contactDiv));
     if (contactDiv) {
         var email = tryExtractedMail(contactDiv);
         if (email) {
+            logDebugMsg('i', email + "Mail found");
             contactDiv.innerHTML += assets['buttonHTML'].replace('{{email}}', email);
             isElementsFound = true;
         } else {
-            logMsg('wa', "No mail found");
+            logDebugMsg('w', "No mail found");
         }
     }
 }
 
 function stopTimer() {
     clearInterval(checkTimer); // run only once
-    logMsg('in', "timer stopped");
+    logDebugMsg('i', "timer stopped");
 }
 
 function notifyMsg() {
@@ -80,42 +81,54 @@ function notifyMsg() {
             globalPosition: "top middle",
             style: "html"
         });
-        logMsg('in', "notification showed");
+        logDebugMsg('i', "notification showed");
     }
 }
 
+var ticksCounter = 0;
 function stopTimerOverFlow() {
     ticksCounter++;
     if (ticksCounter === config['maxTicks']) {
         if (isElementsFound) {
             notifyMsg();
         } else {
-            logMsg('in', 'No elements found')
+            logDebugMsg('w', 'No elements found')
         }
-        logMsg('in', "max ticksCounter reached");
+        logDebugMsg('w', "max ticksCounter reached");
         stopTimer();
     }
 }
 
 function checkForUpdate() {
-    logMsg('in', "looking for elements...");
     var elements = $(assets['selectors']);
-    logMsg('in', elements.size() + " elements found");
+    var elementsNumber = elements.size();
+    logDebugMsg('i', elementsNumber + " elements found");
 
-    elements.each(function () {
+    if (!elementsNumber) {
+        return;
+    }
+
+    elements.each(function (index, value)  {
         stopTimer();
-        logMsg('in', "processing new element");
-        formatDivWithNewButton(this);
+        logDebugMsg('i', "processing new element");
+        formatDivWithNewButton(value);
     });
 }
 
-logMsg('in', "script started");
+logDebugMsg('i', "script started");
 $(document).ready(function() {
-    logMsg('in', "doc ready");
+    logDebugMsg('i', "doc ready");
     function timerInterval() {
-        logMsg('in', "tick");
         stopTimerOverFlow();
         checkForUpdate();
     }
-    checkTimer = setInterval(timerInterval, config['checkInterval']);
+
+    if (config['checkInterval']) {
+        var delayedTimer = setInterval(function () {
+            checkTimer = setInterval(timerInterval, config['checkInterval']);
+            clearInterval(delayedTimer); // run only once
+        }, config['delayedStart']);
+    } else {
+        checkTimer = setInterval(timerInterval, config['checkInterval']);
+    }
 });
